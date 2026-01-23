@@ -3,9 +3,33 @@ import numpy as np
 
 class SDFunctions:
 	
-	def stock_delay(t, time_delay, interpolator, initial_value=None):
+	def check_delay_time(t, delay):
 		'''
-		Function to return stock values at a delayed time.
+		Check if the time delay is greater than the current time.
+
+		Parameters
+		----------
+		t : float
+			Current time point. 
+		time_delay : float
+			Length of the time delay.
+
+		Returns
+		-------
+		bool
+			True if the delay time is less than the current t. 
+		'''
+
+		if delayed_t < t:
+			output = True
+		else: 
+			output = False
+
+		return output
+	
+	def stock_delay(t, time_delay, interpolator):
+		'''
+		Return stock values at a delayed time.
 
 		Parameters
 		----------
@@ -15,8 +39,6 @@ class SDFunctions:
 			Length of the time delay. 
 		interpolator: OdeSolution
 			Class for interpolating the delayed value. 
-		initial_value: list or numpy.array, optional
-			Value(s) to return if t < time_delay
 			
 		Returns
 		-------
@@ -27,17 +49,7 @@ class SDFunctions:
 		# Calculate delayed time
 		delayed_t = t - time_delay
 
-		if delayed_t > 0:
-
-			# Obtain delayed values
-			output = interpolator.__call__(delayed_t)
-
-		else: 
-
-			# Return initial value
-			if initial_value:
-				output = initial_value
-			else:
-				output = interpolator.__call__(0)
+		# Obtain delayed values
+		output = interpolator.__call__(delayed_t)
 
 		return output

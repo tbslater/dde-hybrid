@@ -54,7 +54,7 @@ class SDSolve(SDSetup):
 		super().__init__(params, initial_conditions)
 
 		# Set up attribute for interpolation
-		self.interpolator = 0
+		self.interpolator = None
 
 		# Calculate smallest delay time (required for triggering a solve)
 		self.min_delay = min(self.death_delay, self.recovery_delay, self.immunity_delay)
@@ -96,3 +96,30 @@ class SDSolve(SDSetup):
 		dDdt = - death_rate
 
 		return np.array([dSdt, dIdt, dMdt, dDdt])
+
+	def solve(self, t):
+
+		# Initial conditions
+		y0 = [self.S[-1], self.I[-1], self.M[-1], self.D[-1]]
+
+		# Time domain for solving
+		time_domain = [self.time[-1], t]
+
+		# Solve stock equations
+		solutions = solve_ivp(self.stock_equations, time_domain, y0, 
+							  t_eval=[t], dense_output=True)
+
+		# Append solutions
+		S, I, M, D = solutions.y.T
+		self.S = np.append(self.S, S)
+		self.I = np.append(self.I, I)
+		self.M = np.append(self.M, M)
+		self.D = np.append(self.D, D)
+
+		# Append interpolator
+		if self.interpolator:
+			ts = np.append(interpolator.ts, solutions.sol.ts[1:])
+			interpolants = interpolator.interpolants + solutions.sol.interpolants
+			self.interpolator = OdeSolution(ts, interpolants)
+		else: 
+			self.interpolator = solutions.sol

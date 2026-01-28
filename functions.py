@@ -3,7 +3,7 @@ import numpy as np
 
 class SDFunctions:
 	
-	def check_delay_time(t, delay):
+	def check_delay_time(t, time_delay):
 		'''
 		Check if the time delay is greater than the current time.
 
@@ -20,7 +20,7 @@ class SDFunctions:
 			True if the delay time is less than the current t. 
 		'''
 
-		if delayed_t < t:
+		if t > time_delay:
 			output = True
 		else: 
 			output = False

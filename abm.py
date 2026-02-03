@@ -35,9 +35,9 @@ class AgentBasedModel:
 		self.probs_dist = distributions['agent_probabilities']
 		self.distance_dist = distributions['relative_distance']
 
-	def generate_agents(self, max_agents):
+	def generate_agents(self, num_agents):
 
-		self.num_agents = max_agents	
+		self.num_agents = num_agents	
 
 		# Randomly draw agent attributes
 		agent_probs = self.probs_dist.sample(self.num_agents)
@@ -56,11 +56,9 @@ class AgentBasedModel:
 			self.agent_list.append(Agent(attributes))
 
 		# Generate friendship network
-		social_network = nx.newman_watts_strogatz_graph(self.num_agents, 2, 0.75)
+		self.social_network = nx.newman_watts_strogatz_graph(self.num_agents, 2, 0.75)
 		agent_map = dict(zip(range(self.num_agents), self.agent_list))
-		nx.relabel_nodes(social_network, agent_map, copy=False)
-		nx.display(social_network, node_size=10, node_label=False, edge_label=False,
-				   node_alpha=0.8,edge_alpha=0.8, edge_width=0.5)
+		nx.relabel_nodes(self.social_network, agent_map, copy=False)
 
 		# Store friends as an agent attribute
 		for i in self.agent_list:

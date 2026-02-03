@@ -9,19 +9,26 @@ class SystemDynamics:
 
 		# Parameters
 		self.marketing = params['marketing']
-		self.joining = params['joining']
+		self.joining_rate = params['joining_rate']
 		self.contact_rate = params['contact_rate']
-		self.renewal = params['renewal']
+		self.dropout_rate = params['dropout_rate']
 		self.membership_length = params['membership_length']
+		self.dropout_delay = params['dropout_delay']
 		self.population = params['population']
 
 		# Initial conditions
 		if initial_conditions:
-			self.N = np.array([initial_conditions['non_members']])
+			self.P = np.array([initial_conditions['potential_members']])
 			self.M = np.array([initial_conditions['members']])
+			self.D = np.array([initial_conditions['dropouts']])
+			# We'll add an extra stock for extracting flows for the hybrid model
+			self.N = np.array([initial_conditions['new_potential_members']])
 		else:
-			self.N = np.array([self.population])
+			self.P = np.array([self.population])
 			self.M = np.array([0])
+			self.D = np.array([0])
+			# We'll add an extra stock for extracting flows for the hybrid model
+			self.N = np.array([0])
 
 		# Store timepoints
 		self.time = np.array([0])
@@ -29,33 +36,47 @@ class SystemDynamics:
 		# Store interpolator
 		self.interpolator = None
 
-	def joining_rate(self, t, y):
+	def member_inflow(self, y):
 
-		N, M = y
+		P, M, D, N = y
 
-		output = (self.marketing * N) + \
-		(self.contact_rate * self.joining * N * M) / self.population
+		output = (self.marketing * P) + \
+		(self.contact_rate * self.joining_rate * P * M) / self.population
 
 		return output
 
-	def renewal_rate(self, t):
+	def dropout_inflow(self, t):
 
 		t_delay = t - self.membership_length
 		if t_delay >= 0:
 			y_delay = self.interpolator.__call__(t_delay)
-			output = self.joining_rate(t_delay, y_delay)
+			output = self.dropout_rate * self.member_inflow(t_delay, y_delay)
 		else: 
 			output = 0
 
 		return output
 
+	def potential_inflow(self, y):
+
+		P, M, D, N = y
+		output = D / self.dropout_delay
+
+		return output
+
 	def stock_equations(self, t, y):
 
-		inflow = self.joining_rate(t, y) - self.renewal_rate(t)
-		dNdt = - inflow
-		dUdt = inflow
+		# Evaluate flows
+		member_inflow = self.member_inflow(y)
+		ex_inflow = self.ex_inflow(t)
+		potential_inflow = self.potential_inflow(y)
 
-		return dNdt, dUdt
+		# Stock equations
+		dPdt = potential_inflow - member_inflow
+		dMdt = member_inflow - ex_inflow
+		dDdt = ex_inflow - potential_inflow
+		dNdt = potential_inflow
+
+		return dPdt, dMdt, dDdt, dNdt
 
 	def solve(self, t):
 
@@ -72,9 +93,11 @@ class SystemDynamics:
 			solutions = solve_ivp(self.stock_equations, time_domain, y0, 
 								  dense_output=True, method='LSODA')
 		
-			N, M = solutions.y[:, -1]
-			self.N = np.append(self.N, N)
+			P, M, D, N = solutions.y[:, -1]
+			self.P = np.append(self.P, P)
 			self.M = np.append(self.M, M)
+			self.D = np.append(self.D, D)
+			self.N = np.append(self.N, N)
 		
 			self.time = np.append(self.time, tmax)
 		

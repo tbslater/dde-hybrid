@@ -5,16 +5,16 @@ from scipy.integrate import solve_ivp, OdeSolution
 
 class SystemDynamics:
 
-	def __init__(self, params, initial_conditions=None):
+	def __init__(self, parameters, initial_conditions=None):
 
 		# Parameters
-		self.marketing = params['marketing']
-		self.joining_rate = params['joining_rate']
-		self.contact_rate = params['contact_rate']
-		self.dropout_rate = params['dropout_rate']
-		self.membership_length = params['membership_length']
-		self.dropout_delay = params['dropout_delay']
-		self.population = params['population']
+		self.marketing = parameters['marketing']
+		self.joining_rate = parameters['joining_rate']
+		self.contact_rate = parameters['contact_rate']
+		self.dropout_rate = parameters['dropout_rate']
+		self.membership_length = parameters['membership_length']
+		self.dropout_delay = parameters['dropout_delay']
+		self.population = parameters['population']
 
 		# Initial conditions
 		if initial_conditions:

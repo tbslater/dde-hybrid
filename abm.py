@@ -1,13 +1,12 @@
 # Import required packages / files
 import numpy as np
-from sim_tools.distributions import DistributionRegistry
-import random
+from sim_tools.distributions import Uniform, Beta
 import networkx as nx
 from agent import Agent
 
 class AgentBasedModel:
 
-	def __init__(self, parameters, seed):
+	def __init__(self, parameters, seeds):
 
 		# Parameters
 		if sum(parameters['preference_weights'])=1:
@@ -15,33 +14,17 @@ class AgentBasedModel:
 		else:
 			raise ValueError('Weights must sum to 1.')
 			break
-		
-		# Dictionary-based configuration (named distributions)
-		config = {
-			'agent_probabilities': {
-				'class_name': 'Uniform',
-				'params': {'low': 0, 'high': 1}
-			}, 
-			'relative_distance': {
-				'class_name': 'Beta',
-				'params': {'alpha': 4, 'beta': 2}
-			}
-		}
-		
-		# Create all distributions with a master seed
-		distributions = DistributionRegistry.create_batch(config, main_seed=seed)
-		
-		# Access distributions by name
-		self.probs_dist = distributions['agent_probabilities']
-		self.distance_dist = distributions['relative_distance']
+
+		# Store seeds
+		self.seeds = seeds
 
 	def generate_agents(self, num_agents):
 
 		self.num_agents = num_agents	
 
 		# Randomly draw agent attributes
-		agent_probs = self.probs_dist.sample(self.num_agents)
-		agent_distances = self.distance_dist.sample(self.num_agents)
+		agent_probs = Uniform(low=0, high=1, random_seed=self.seeds[0])
+		agent_distances = Beta(alpha=4, beta=2, random_seed=self.seeds[1])
 		
 		# Empty list for storing agents
 		self.agent_list = []

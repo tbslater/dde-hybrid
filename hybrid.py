@@ -33,11 +33,14 @@ class HybridSim(AgentBasedModel):
 		for i in range(2):
 			if initial_vals[i] != 0:
 				poss = [x in self.agent_list if x.member==i and x.dropout==0]
-				probs = [x.pref for x in possible_agents]
-				transformed_probs = probs / sum(probs)
+				if i==0:
+					probs = [x.pref for x in possible_agents]
+				else:
+					probs = [1-x.pref for x in possible_agents]
+				probs = probs / sum(probs)
 				to_change = \
 				self.generators[self.converters[i]].choice(poss, size=initial_vals[i],
-														  replace=False, p=transformed_probs)
+														  replace=False, p=probs)
 				for agent in to_change:
 					x.member == 1-i
 					x.dropout == i
@@ -59,16 +62,21 @@ class HybridSim(AgentBasedModel):
 				
 				if i==0:
 					possible = [x in self.agent_list if x.member==0 and x.dropout==0]
+					probs = [x.pref for x in possible_agents]
+					probs = probs / sum(probs)
 				if i==1: 
 					possible = [x in self.agent_list if x.member]
+					probs = [1-x.pref for x in possible_agents]
+					probs = probs / sum(probs)
 				if i==2:
 					possible = [x in self.agent_list if x.dropout]
+					probs = None
 					
 				probs = [x.pref for x in possible_agents]
 				transformed_probs = probs / sum(probs)
 				
 				to_change = self.generators[flow].choice(possible, size=flow_vals[flow], 
-														 replace=False, p=transformed_probs)
+														 replace=False, p=probs)
 
 				for agent in to_change:
 					if i==0:
@@ -82,8 +90,13 @@ class HybridSim(AgentBasedModel):
 
 	def update_sd_parameters(self):
 
-		self.sd_model.joining_rate = # ...
-		self.sd_model.dropout_rate = # ...
+		average_potential_pref = \
+		np.mean([x.pref for x in self.agent_list if x.member==0 and x.dropout==0])
+		average_member_pref = \
+		np.mean([x.pref for x in self.agent_list if x.member==1])
+		
+		self.sd_model.joining_rate = average_potential_pref / 10
+		self.sd_model.dropout_rate = 1-average_member_pref
 
 		return None
 

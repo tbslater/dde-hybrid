@@ -1,6 +1,5 @@
-# Import required packages 
+# Import required packages
 import numpy as np
-import math
 from scipy.integrate import solve_ivp, OdeSolution
 
 class SystemDynamics:
@@ -8,27 +7,25 @@ class SystemDynamics:
 	def __init__(self, parameters, initial_conditions=None):
 
 		# Parameters
-		self.marketing = parameters['marketing']
-		self.joining_rate = parameters['joining_rate']
 		self.contact_rate = parameters['contact_rate']
-		self.dropout_rate = parameters['dropout_rate']
-		self.membership_length = parameters['membership_length']
-		self.dropout_delay = parameters['dropout_delay']
-		self.population = parameters['population']
+		self.infectivity = parameters['infectivity']
+		self.symptom_delay = parameters['symptom_delay']
+		self.quarantine_length = parameters['quarantine_length']
+		self.vaccine_fraction = 0
+		self.quarantine_fraction = parameters['quarantine_fraction']
+		self.infectivity_length = parameters['infectivity_length']
 
-		# Initial conditions
+		# Initial_conditions
 		if initial_conditions:
-			self.P = np.array([initial_conditions['potential_members']])
-			self.M = np.array([initial_conditions['members']])
-			self.D = np.array([initial_conditions['dropouts']])
-			# We'll add an extra stock for extracting flows for the hybrid model
-			self.N = np.array([initial_conditions['new_potential_members']])
+			self.S = np.array([initial_conditions['susceptible']])
+			self.I = np.array([initial_conditions['infected']])
+			self.Q = np.array([initial_conditions['quarantined']])
+			self.R = np.array([initial_conditions['recovered']])
 		else:
-			self.P = np.array([self.population])
-			self.M = np.array([0])
-			self.D = np.array([0])
-			# We'll add an extra stock for extracting flows for the hybrid model
-			self.N = np.array([0])
+			self.S = np.array([parameters['population'] - 1])
+			self.I = np.array([1])
+			self.Q = np.array([0])
+			self.R = np.array([0])
 
 		# Store timepoints
 		self.time = np.array([0])
@@ -36,55 +33,52 @@ class SystemDynamics:
 		# Store interpolator
 		self.interpolator = None
 
-	def member_inflow(self, y):
+	def flow_equations(self, t, y):
 
-		P, M, D, N = y
+		S, I, Q, R = y
+		
+		def quarantine_rate(I):
 
-		output = (self.marketing * P) + \
-		(self.contact_rate * self.joining_rate * P * M) / self.population
+			output = (self.quarantine_fraction * I) / self.symptom_delay
+			
+			return output
+		
+		IR = (self.contact_rate * self.infectivity * S * I) / (S + I + R)
 
-		return output
-
-	def dropout_inflow(self, t):
-
-		t_delay = t - self.membership_length
+		IRR = ((1-self.quarantine_fraction) * I) / \
+		(self.infectivity_length - self.symptom_delay)
+		
+		QR = quarantine_rate(I)
+		
+		VR = self.vaccine_fraction * S
+		
+		t_delay = t - self.quarantine_length
 		if t_delay >= 0:
-			y_delay = self.interpolator.__call__(t_delay)
-			output = self.dropout_rate * self.member_inflow(t_delay, y_delay)
-		else: 
-			output = 0
+			I_delay = self.interpolator.__call__(t_delay)[1]
+			QRR = quarantine_rate(I_delay)
+		else:
+			QRR = 0
 
-		return output
-
-	def potential_inflow(self, y):
-
-		P, M, D, N = y
-		output = D / self.dropout_delay
-
-		return output
+		return IR, IRR, QR, VR, QRR
 
 	def stock_equations(self, t, y):
 
-		# Evaluate flows
-		member_inflow = self.member_inflow(y)
-		ex_inflow = self.ex_inflow(t)
-		potential_inflow = self.potential_inflow(y)
+		IR, IRR, QR, VR, QRR = self.flow_equations(t, y)
 
-		# Stock equations
-		dPdt = potential_inflow - member_inflow
-		dMdt = member_inflow - ex_inflow
-		dDdt = ex_inflow - potential_inflow
-		dNdt = potential_inflow
+		dSdt = - IR - VR
+		dIdt = IR - IRR - QR
+		dQdt = QR - QRR
+		dRdt = VR + IRR + QRR
 
-		return dPdt, dMdt, dDdt, dNdt
+		return dSdt, dIdt, dQdt, dRdt
 
 	def solve(self, t):
 
 		while self.time[-1] < t:
-			tmax = min(self.time[-1] + self.membership_length - 1, t)
+			tmax = min(self.time[-1] + self.quarantine_length - 1, t)
 			
 			# Initial conditions
-			y0 = [self.N[-1], self.M[-1]]
+			y0 = [self.S[-1], self.I[-1], self.Q[-1], self.R[-1]]
 		
 			# Time domain
 			time_domain = [self.time[-1], tmax]
@@ -93,11 +87,11 @@ class SystemDynamics:
 			solutions = solve_ivp(self.stock_equations, time_domain, y0, 
 								  dense_output=True, method='LSODA')
 		
-			P, M, D, N = solutions.y[:, -1]
-			self.P = np.append(self.P, P)
-			self.M = np.append(self.M, M)
-			self.D = np.append(self.D, D)
-			self.N = np.append(self.N, N)
+			S, I, Q, R = solutions.y[:, -1]
+			self.S = np.append(self.S, S)
+			self.I = np.append(self.I, I)
+			self.Q = np.append(self.Q, Q)
+			self.R = np.append(self.R, R)
 		
 			self.time = np.append(self.time, tmax)
 		

@@ -14,7 +14,7 @@ class SystemDynamics:
 		Probability of transmission given contact.
 	symptom_delay : int or float
 		Average number of days following infection before symptoms show.
-	quarantine_length : int or float
+	quarantine_length : int
 		Number of days in quarantine following symptoms. 
 	vaccine_fraction : float
 		Proportion of the population being vaccinated. 
@@ -42,8 +42,8 @@ class SystemDynamics:
 
 	References
 	----------
-	.. [1] Palmer, G. I. and Tian, Y. (2023) ‘Implementing hybrid simulations
-	that integrate DES+SD in Python’, Journal of Simulation, 17(3),
+	.. [1] Palmer G I, Tian Y (2023) Implementing hybrid simulations
+	that integrate DES+SD in Python, Journal of Simulation, 17(3),
 	pp. 240–256. doi: 10.1080/17477778.2021.1992312.
 	'''
 
@@ -102,7 +102,7 @@ class SystemDynamics:
 
 		Returns
 		-------
-		tuple, shape (5,)
+		array_like, shape (5,)
 			Flow values at time t.
 		'''
 
@@ -145,7 +145,7 @@ class SystemDynamics:
 
 		Returns
 		-------
-		tuple, shape (4,)
+		array_like, shape (4,)
 			Differential equation values at time t.
 		'''
 

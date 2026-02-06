@@ -91,7 +91,7 @@ class AgentBasedModel:
 		----------
 		parameters : dict
 			Dictionary containing values for max_daily_vax, influence_param, 
-			beta_params and weight.
+			beta_params, weight.
 		main_seed : int
 			Seed for reproducibility.
 		'''

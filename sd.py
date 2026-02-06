@@ -3,8 +3,64 @@ import numpy as np
 from scipy.integrate import solve_ivp, OdeSolution
 
 class SystemDynamics:
+	'''
+	Represents a system dynamics model for infectious disease modelling.
+
+	Attributes
+	----------
+	contact_rate : int or float
+		Average number of contacts per day.
+	infectivity : float
+		Probability of transmission given contact.
+	symptom_delay : int or float
+		Average number of days following infection before symptoms show.
+	quarantine_length : int or float
+		Number of days in quarantine following symptoms. 
+	vaccine_fraction : float
+		Proportion of the population being vaccinated. 
+	quarantine_fraction : float
+		Proportion of people who quarantine given they have symptoms.
+	infectivity_length : int or float
+		Average duration of infectivity.
+	S : array_like, shape (n,)
+		Number of susceptible individuals at each time point in time.
+	I : array_like, shape (n,)
+		Number of infected individuals at each time point in time.
+	Q : array_like, shape (n,)
+		Number of quarantined individuals at each time point in time.
+	R : array_like, shape (n,)
+		Number of recovered individuals at each time point in time.
+	time : array_like, shape (n,)
+		Time points at which the equations have been solved.
+	interpolator : OdeSolution
+		Used for interpolating between previously solved points.
+
+	Notes
+	-----
+	The structure of this code was inspired by the work of Palmer and 
+	Tian, 2021 [1].
+
+	References
+	----------
+	.. [1] Palmer, G. I. and Tian, Y. (2023) ‘Implementing hybrid simulations
+	that integrate DES+SD in Python’, Journal of Simulation, 17(3),
+	pp. 240–256. doi: 10.1080/17477778.2021.1992312.
+	'''
 
 	def __init__(self, parameters, initial_conditions=None):
+		'''
+		Initialise a system dynamics model.
+
+		Parameters
+		----------
+		parameters : dict
+			Dictionary containing values for contact_rate, infectivity,
+			symptom_delay, quarantine_length, vaccine_fraction, 
+			quarantine_fraction, infectivity_length, population.
+		initial_conditions : dict, optional
+			Dicitionary containing initial stock values for susceptible,
+			infected, quarantined and recovered individuals.
+		'''
 
 		# Parameters
 		self.contact_rate = parameters['contact_rate']
@@ -34,6 +90,21 @@ class SystemDynamics:
 		self.interpolator = None
 
 	def flow_equations(self, t, y):
+		'''
+		Calculates flow values at time t.
+
+		Parameters
+		----------
+		t : float
+			Current time point. 
+		y : array_like, shape (4,)
+			Stock values at time t.
+
+		Returns
+		-------
+		tuple, shape (5,)
+			Flow values at time t.
+		'''
 
 		S, I, Q, R = y
 		
@@ -62,6 +133,21 @@ class SystemDynamics:
 		return IR, IRR, QR, VR, QRR
 
 	def stock_equations(self, t, y):
+		'''
+		Calculates rate of change in stock at time t.
+
+		Parameters
+		----------
+		t : float
+			Current time point. 
+		y : array_like, shape (4,)
+			Stock values at time t.
+
+		Returns
+		-------
+		tuple, shape (4,)
+			Differential equation values at time t.
+		'''
 
 		IR, IRR, QR, VR, QRR = self.flow_equations(t, y)
 
@@ -73,6 +159,14 @@ class SystemDynamics:
 		return dSdt, dIdt, dQdt, dRdt
 
 	def solve(self, t):
+		'''
+		Solves the stock differential equations until time t.
+
+		Parameters
+		----------
+		t : float
+			Solve until this time.
+		'''
 
 		while self.time[-1] < t:
 			tmax = min(self.time[-1] + self.quarantine_length - 1, t)

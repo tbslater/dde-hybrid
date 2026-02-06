@@ -31,8 +31,10 @@ class HybridSim(AgentBasedModel):
 			self.daily_step(self.sd_model.I[-1])
 
 			# Update SD parameter
+			# self.sd_model.vaccination_fraction = self.daily_vax[-1] / \
+			# self.population
 			self.sd_model.vaccination_fraction = self.daily_vax[-1] / \
-			self.population
+			self.sd_model.S[-1]
 
 			# Print number of iterations completed
 			if t % 10 == 0:

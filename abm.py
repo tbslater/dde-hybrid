@@ -156,9 +156,7 @@ class AgentBasedModel:
 
 		# Generate friendship network
 		self.social_network = nx.newman_watts_strogatz_graph(population, 4, 0.1)
-		labels = {}
-		for i in range(self.population):
-			labels['i'] = self.agent_list[i]
+		labels = dict(zip(range(self.population), self.agent_list))
 		nx.relabel_nodes(self.social_network, labels, copy=False)
 
 		# Store friends as an attribute

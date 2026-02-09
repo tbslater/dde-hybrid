@@ -3,7 +3,7 @@ import numpy as np
 from sd import SystemDynamics
 from abm import Agent, AgentBasedModel
 
-class HybridSim(AgentBasedModel):
+class HybridSim(AgentBasedModel, SystemDynamics):
 	'''
 	Represents a hybrid simulation model for infectious disease
 	modelling, combining a system dynamics approach with an agent-based
@@ -43,16 +43,14 @@ class HybridSim(AgentBasedModel):
 			quarantine_fraction, infectivity_length, population, max_daily_vax,
 			influence_param, beta_params, weight, horizon, main_seed.
 		'''
-
+		
 		# Store additional params
 		self.horizon = parameters['horizon']
 		self.main_seed = parameters['main_seed']
 
-		# Inherit attributes / functions from AgentBasedModel
-		super().__init__(parameters, self.main_seed)
-
-		# Store SD model within the HS model class
-		self.sd_model = SystemDynamics(parameters)
+		# Inherit attributes / functions from sub-models
+		SystemDynamics.__init__(self, parameters)
+		AgentBasedModel.__init__(self, parameters, self.main_seed)
 
 		# Generate agents
 		self.generate_agents(int(parameters['population']))
@@ -71,16 +69,14 @@ class HybridSim(AgentBasedModel):
 		for t in range(1, self.horizon+1):
 			
 			# Solve SD equations
-			self.sd_model.solve(t)
+			self.solve(t)
 
 			# Run one step of the ABM
-			self.daily_step(self.sd_model.I[-1])
+			self.daily_step(self.I[-1])
 
 			# Update SD parameter
-			# self.sd_model.vaccination_fraction = self.daily_vax[-1] / \
-			# self.population
-			self.sd_model.vaccination_fraction = self.daily_vax[-1] / \
-			self.sd_model.S[-1]
+			self.vaccination_fraction = self.daily_vax[-1] / \
+			self.S[-1]
 
 			# Print number of iterations completed
 			if t % 10 == 0:

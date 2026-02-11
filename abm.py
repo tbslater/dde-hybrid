@@ -95,7 +95,7 @@ class AgentBasedModel:
 		main_seed : int
 			Seed for reproducibility.
 		'''
-
+		
 		# Parameters
 		self.max_daily_vax = parameters['max_daily_vax']
 		self.influence_param = parameters['influence_param']
@@ -106,7 +106,7 @@ class AgentBasedModel:
 			raise ValueError('Weight must be between 0 and 1.')
 
 		# Store seeds
-		self.seeds = spawn_seeds(2, main_seed)
+		self.seeds = spawn_seeds(3, main_seed)
 
 		# Generator for sampling agents for vaccination
 		self.generator = np.random.default_rng(self.seeds[0])
@@ -155,7 +155,9 @@ class AgentBasedModel:
 			self.agent_list.append(Agent(thresholds[i]))
 
 		# Generate friendship network
-		self.social_network = nx.newman_watts_strogatz_graph(population, 4, 0.1)
+		graph_generator = np.random.default_rng(self.seeds[2])
+		self.social_network = nx.newman_watts_strogatz_graph(population, 4, 0.1,
+															seed=graph_generator)
 		labels = dict(zip(range(self.population), self.agent_list))
 		nx.relabel_nodes(self.social_network, labels, copy=False)
 

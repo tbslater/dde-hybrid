@@ -125,7 +125,7 @@ class SystemDynamics:
 		
 		t_delay = t - self.quarantine_length
 		if t_delay >= 0:
-			I_delay = self.interpolator.__call__(t_delay)[1]
+			I_delay = self.interpolator(t_delay)[1]
 			QRR = quarantine_rate(I_delay)
 		else:
 			QRR = 0

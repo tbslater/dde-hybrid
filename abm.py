@@ -106,10 +106,11 @@ class AgentBasedModel:
 			raise ValueError('Weight must be between 0 and 1.')
 
 		# Store seeds
-		self.seeds = spawn_seeds(3, main_seed)
+		self.seeds = spawn_seeds(4, main_seed)
 
-		# Generator for sampling agents for vaccination
-		self.generator = np.random.default_rng(self.seeds[0])
+		# Generators for sampling agents
+		self.vax_generator = np.random.default_rng(self.seeds[0])
+		self.dead_generator = np.random.default_rng(self.seeds[1])
 
 		# Store daily vaccinations
 		self.daily_vax = np.array([0])
@@ -146,7 +147,7 @@ class AgentBasedModel:
 		# Randomly draw thresholds from Unif(0,1)
 		threshold_dist = Beta(alpha1=self.beta_params[0], 
 							  alpha2=self.beta_params[1],
-							  random_seed=self.seeds[1])
+							  random_seed=self.seeds[2])
 		thresholds = threshold_dist.sample(self.population)
 
 		# Create agents
@@ -155,7 +156,7 @@ class AgentBasedModel:
 			self.agent_list.append(Agent(thresholds[i]))
 
 		# Generate friendship network
-		graph_generator = np.random.default_rng(self.seeds[2])
+		graph_generator = np.random.default_rng(self.seeds[3])
 		self.social_network = nx.newman_watts_strogatz_graph(population, 4, 0.1,
 															seed=graph_generator)
 		labels = dict(zip(range(self.population), self.agent_list))
@@ -187,15 +188,20 @@ class AgentBasedModel:
 		
 		for agent in unvaccinated:
 
-			social_influence = np.mean([x.vaccinated for x in agent.friends])
-			total_influence = self.weight * infection_influence + \
-			(1-self.weight) * social_influence
+			if len(agent.friends) > 0:
+				social_influence = np.mean([x.vaccinated for x in agent.friends])
+				total_influence = self.weight * infection_influence + \
+				(1-self.weight) * social_influence
+			else:
+				total_influence = infection_influence
 
 			if total_influence > agent.threshold:
 				sample_list.append(agent)
 
 		if len(sample_list) > self.max_daily_vax:
-			vaccinated = self.generator.choice(sample_list, size=self.max_daily_vax)
+			vaccinated = self.vax_generator.choice(sample_list,
+												   size=self.max_daily_vax,
+												   replace=False)
 		else:
 			vaccinated = sample_list
 

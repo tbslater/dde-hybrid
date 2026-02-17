@@ -71,6 +71,14 @@ class HybridSim(AgentBasedModel, SystemDynamics):
 			# Solve SD equations
 			self.solve(t)
 
+			# Calculate new deaths and adapt social network if necessary
+			new_deaths = int(self.D[-1]) - int(self.D[-2])
+			if new_deaths > 0:
+				dead_agents = self.dead_generator.choice(self.agent_list,
+														 size=new_deaths,
+														 replace=False)
+				self.social_network.remove_nodes_from(dead_agents)
+			
 			# Run one step of the ABM
 			self.daily_step(self.I[-1])
 

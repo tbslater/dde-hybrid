@@ -30,6 +30,8 @@ class SystemDynamics:
 		Number of quarantined individuals at each time point in time.
 	R : array_like, shape (n,)
 		Number of recovered individuals at each time point in time.
+	D : array_like, shape (n,)
+		Number of dead individuals at each time point in time.
 	time : array_like, shape (n,)
 		Time points at which the equations have been solved.
 	interpolator : OdeSolution
@@ -70,6 +72,8 @@ class SystemDynamics:
 		self.vaccine_fraction = 0
 		self.quarantine_fraction = parameters['quarantine_fraction']
 		self.infectivity_length = parameters['infectivity_length']
+		self.death_proportion = parameters['death_proportion']
+		self.death_delay = parameters['death_delay']
 
 		# Initial_conditions
 		if initial_conditions:
@@ -77,11 +81,13 @@ class SystemDynamics:
 			self.I = np.array([initial_conditions['infected']])
 			self.Q = np.array([initial_conditions['quarantined']])
 			self.R = np.array([initial_conditions['recovered']])
+			self.D = np.array([initial_conditions['dead']])
 		else:
 			self.S = np.array([parameters['population'] - 1])
 			self.I = np.array([1])
 			self.Q = np.array([0])
 			self.R = np.array([0])
+			self.D = np.array([0])
 
 		# Store timepoints
 		self.time = np.array([0])
@@ -97,16 +103,16 @@ class SystemDynamics:
 		----------
 		t : float
 			Current time point. 
-		y : array_like, shape (4,)
+		y : array_like, shape (5,)
 			Stock values at time t.
 
 		Returns
 		-------
-		array_like, shape (5,)
+		array_like, shape (6,)
 			Flow values at time t.
 		'''
 
-		S, I, Q, R = y
+		S, I, Q, R, D = y
 		
 		def quarantine_rate(I):
 
@@ -126,11 +132,13 @@ class SystemDynamics:
 		t_delay = t - self.quarantine_length
 		if t_delay >= 0:
 			I_delay = self.interpolator(t_delay)[1]
-			QRR = quarantine_rate(I_delay)
+			QRR = (1-self.death_proportion) * quarantine_rate(I_delay)
 		else:
 			QRR = 0
 
-		return IR, IRR, QR, VR, QRR
+		DR = (self.death_proportion * Q) / self.death_delay
+
+		return IR, IRR, QR, VR, QRR, DR
 
 	def stock_equations(self, t, y):
 		'''
@@ -140,23 +148,24 @@ class SystemDynamics:
 		----------
 		t : float
 			Current time point. 
-		y : array_like, shape (4,)
+		y : array_like, shape (5,)
 			Stock values at time t.
 
 		Returns
 		-------
-		array_like, shape (4,)
+		array_like, shape (5,)
 			Differential equation values at time t.
 		'''
 
-		IR, IRR, QR, VR, QRR = self.flow_equations(t, y)
+		IR, IRR, QR, VR, QRR, DR = self.flow_equations(t, y)
 
 		dSdt = - IR - VR
 		dIdt = IR - IRR - QR
-		dQdt = QR - QRR
+		dQdt = QR - QRR - DR
 		dRdt = VR + IRR + QRR
+		dDdt = DR
 
-		return dSdt, dIdt, dQdt, dRdt
+		return dSdt, dIdt, dQdt, dRdt, dDdt
 
 	def solve(self, t):
 		'''
@@ -172,7 +181,7 @@ class SystemDynamics:
 			tmax = min(self.time[-1] + self.quarantine_length - 1, t)
 			
 			# Initial conditions
-			y0 = [self.S[-1], self.I[-1], self.Q[-1], self.R[-1]]
+			y0 = [self.S[-1], self.I[-1], self.Q[-1], self.R[-1], self.D[-1]]
 		
 			# Time domain
 			time_domain = [self.time[-1], tmax]
@@ -181,11 +190,12 @@ class SystemDynamics:
 			solutions = solve_ivp(self.stock_equations, time_domain, y0, 
 								  dense_output=True, method='LSODA')
 		
-			S, I, Q, R = solutions.y[:, -1]
+			S, I, Q, R, D = solutions.y[:, -1]
 			self.S = np.append(self.S, S)
 			self.I = np.append(self.I, I)
 			self.Q = np.append(self.Q, Q)
 			self.R = np.append(self.R, R)
+			self.D = np.append(self.D, D)
 		
 			self.time = np.append(self.time, tmax)
 		

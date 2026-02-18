@@ -73,10 +73,22 @@ class HybridSim(AgentBasedModel, SystemDynamics):
 
 			# Calculate new deaths and adapt social network if necessary
 			new_deaths = int(self.D[-1]) - int(self.D[-2])
-			if new_deaths > 0:
+			
+			if new_deaths > 0: # if any new deaths
+				
+				# Randomly sample agents
 				dead_agents = self.dead_generator.choice(self.agent_list,
 														 size=new_deaths,
 														 replace=False)
+				
+				# Remove dead agents from friendship list
+				for x in dead_agents:
+					for friend in x.friends:
+						if x in friend.friends:
+							friend.friends.remove(x)
+							friend.num_friends -= 1
+							
+				# Remove from network graph
 				self.social_network.remove_nodes_from(dead_agents)
 			
 			# Run one step of the ABM

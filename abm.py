@@ -188,12 +188,9 @@ class AgentBasedModel:
 		
 		for agent in unvaccinated:
 
-			if len(agent.friends) > 0:
-				social_influence = np.mean([x.vaccinated for x in agent.friends])
-				total_influence = self.weight * infection_influence + \
-				(1-self.weight) * social_influence
-			else:
-				total_influence = infection_influence
+			social_influence = np.mean([x.vaccinated for x in agent.friends])
+			total_influence = self.weight * infection_influence + \
+			(1-self.weight) * social_influence
 
 			if total_influence > agent.threshold:
 				sample_list.append(agent)

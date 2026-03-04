@@ -2,7 +2,71 @@
 import numpy as np
 from scipy.integrate import solve_ivp, OdeSolution
 
-class SystemDynamics:
+class Interpolator:
+	'''
+	Object for interpolation of stock values.
+
+	Attributes
+	----------
+	interpolator : OdeSolution
+		Object containing functions for interpolation. 
+	'''
+
+	def __init__(self):
+		'''
+		Initialise an interpolator for the model. 
+
+		Parameters
+		----------
+		interpolator : OdeSolution
+			Object containing functions for interpolation. 
+		'''
+
+		self.interpolator = None
+
+	def update_interp(self, solutions):
+		'''
+		Create a new OdeSolution object using by merging old and new.
+
+		Parameters
+		----------
+		solutions : bunch object
+			Output from solve_ivp. 
+		'''
+		
+		if self.interpolator:
+			ts = np.append(self.interpolator.ts, solutions.sol.ts[1:])
+			interpolants = self.interpolator.interpolants + solutions.sol.interpolants
+			self.interpolator = OdeSolution(ts, interpolants)
+		else: 
+			self.interpolator = solutions.sol
+
+	def interp(self, t, adjust=False):
+		'''
+		Return interpolated value(s) at a singular or array of time points.
+		Adjust the value in line with bounds (to account for error).
+
+		Parameters
+		----------
+		t : float or array_like
+			Singular or array of time points to solve at.
+		adjust : bool
+			Adjusts stock values so bounds are not violated if True. 
+
+		Returns
+		-------
+		array_like
+			Interpolated values. 
+		'''
+
+		vals = self.interpolator(t)
+		if adjust:
+			vals[(vals < 0)] = 0
+			vals[(vals > self.population)] = self.population
+
+		return vals
+
+class SystemDynamics(Interpolator):
 	'''
 	Represents a system dynamics model for infectious disease modelling.
 
@@ -16,8 +80,8 @@ class SystemDynamics:
 		Average number of days following infection before symptoms show.
 	quarantine_length : int
 		Number of days in quarantine following symptoms. 
-	vaccine_fraction : float
-		Proportion of the population being vaccinated. 
+	vaccine_uptake : float
+		Number of people vaccinated per day. 
 	quarantine_fraction : float
 		Proportion of people who quarantine given they have symptoms.
 	infectivity_length : int or float
@@ -32,8 +96,6 @@ class SystemDynamics:
 		Number of recovered individuals at each time point in time.
 	time : array_like, shape (n,)
 		Time points at which the equations have been solved.
-	interpolator : OdeSolution
-		Used for interpolating between previously solved points.
 
 	Notes
 	-----
@@ -55,21 +117,25 @@ class SystemDynamics:
 		----------
 		parameters : dict
 			Dictionary containing values for contact_rate, infectivity,
-			symptom_delay, quarantine_length, vaccine_fraction, 
+			symptom_delay, quarantine_length, vaccine_uptake, 
 			quarantine_fraction, infectivity_length, population.
 		initial_conditions : dict, optional
 			Dicitionary containing initial stock values for susceptible,
 			infected, quarantined and recovered individuals.
 		'''
 
+		# Inherit interpolator class
+		super().__init__()
+
 		# Parameters
 		self.contact_rate = parameters['contact_rate']
 		self.infectivity = parameters['infectivity']
 		self.symptom_delay = parameters['symptom_delay']
 		self.quarantine_length = parameters['quarantine_length']
-		self.vaccine_fraction = 0
+		self.vaccine_uptake = 0
 		self.quarantine_fraction = parameters['quarantine_fraction']
 		self.infectivity_length = parameters['infectivity_length']
+		self.population = parameters['population']
 
 		# Initial_conditions
 		if initial_conditions:
@@ -78,16 +144,13 @@ class SystemDynamics:
 			self.Q = np.array([initial_conditions['quarantined']])
 			self.R = np.array([initial_conditions['recovered']])
 		else:
-			self.S = np.array([parameters['population'] - 1])
+			self.S = np.array([self.population - 1])
 			self.I = np.array([1])
 			self.Q = np.array([0])
 			self.R = np.array([0])
 
 		# Store timepoints
 		self.time = np.array([0])
-
-		# Store interpolator
-		self.interpolator = None
 
 	def flow_equations(self, t, y):
 		'''
@@ -105,12 +168,12 @@ class SystemDynamics:
 		array_like, shape (5,)
 			Flow values at time t.
 		'''
-
-		S, I, Q, R = y
 		
-		def quarantine_rate(I):
+		S, I, Q, R = y
 
-			output = (self.quarantine_fraction * I) / self.symptom_delay
+		def quarantine_rate(infections):
+
+			output = (self.quarantine_fraction * infections) / self.symptom_delay
 			
 			return output
 		
@@ -120,13 +183,12 @@ class SystemDynamics:
 		
 		QR = quarantine_rate(I)
 		
-		VR = self.vaccine_fraction * S
+		VR = self.vaccine_uptake
 		
 		t_delay = t - self.quarantine_length
 		if t_delay >= 0:
-			print(self.interpolator(t_delay))
-			I_delay = self.interpolator(t_delay)[1]
-			QRR = quarantine_rate(I_delay)
+			I_delay = self.interp(t_delay)[1] 
+			QRR = quarantine_rate(I_delay) # + self.error[-1]
 		else:
 			QRR = 0
 
@@ -158,7 +220,7 @@ class SystemDynamics:
 
 		return dSdt, dIdt, dQdt, dRdt
 
-	def solve(self, t):
+	def solve(self, t, method):
 		'''
 		Solves the stock differential equations until time t.
 
@@ -166,6 +228,8 @@ class SystemDynamics:
 		----------
 		t : float
 			Solve until this time.
+		method : str
+			Method for solving. 
 		'''
 
 		while self.time[-1] < t:
@@ -179,20 +243,17 @@ class SystemDynamics:
 		
 			# Solve stock equations
 			solutions = solve_ivp(self.stock_equations, time_domain, y0, 
-								  dense_output=True, method='LSODA')
+								  dense_output=True, method=method, rtol=1e-9)
 		
-			S, I, Q, R = solutions.y[:, -1]
+			# Append interpolator
+			self.update_interp(solutions)
+
+			# Return last values
+			S, I, Q, R = self.interp(tmax)
+			
+			# Update stock values
 			self.S = np.append(self.S, S)
 			self.I = np.append(self.I, I)
 			self.Q = np.append(self.Q, Q)
 			self.R = np.append(self.R, R)
-		
-			self.time = np.append(self.time, tmax)
-		
-			# Append interpolator
-			if self.interpolator:
-				ts = np.append(self.interpolator.ts, solutions.sol.ts[1:])
-				interpolants = self.interpolator.interpolants + solutions.sol.interpolants
-				self.interpolator = OdeSolution(ts, interpolants)
-			else: 
-				self.interpolator = solutions.sol
+			self.time = np.append(self.time, tmax)	

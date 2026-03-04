@@ -53,9 +53,9 @@ class HybridSim(AgentBasedModel, SystemDynamics):
 		AgentBasedModel.__init__(self, parameters, self.main_seed)
 
 		# Generate agents
-		self.generate_agents(int(parameters['population']))
+		self.generate_agents(int(self.population))
 
-	def simulate(self):
+	def simulate(self, method='RK45'):
 		'''
 		Run the model until t=horizon.
 
@@ -64,19 +64,23 @@ class HybridSim(AgentBasedModel, SystemDynamics):
 			2) Run the ABM and change agent states.
 			3) Calculate the proportion of vaccinations that day and update the
 			SD parameter.
+
+		Parameters
+		----------
+		method : str
+			Method used by solve_ivp to solve stock equations.
 		'''
 
 		for t in range(1, self.horizon+1):
 			
 			# Solve SD equations
-			self.solve(t)
+			self.solve(t, method)
 			
 			# Run one step of the ABM
 			self.daily_step(self.I[-1])
 
 			# Update SD parameter
-			self.vaccination_fraction = self.daily_vax[-1] / \
-			self.S[-1]
+			self.vaccination_fraction = self.daily_vax[-1]
 
 			# Print number of iterations completed
 			if t % 10 == 0:

@@ -15,13 +15,9 @@ class Interpolator:
 	def __init__(self):
 		'''
 		Initialise an interpolator for the model. 
-
-		Parameters
-		----------
-		interpolator : OdeSolution
-			Object containing functions for interpolation. 
 		'''
 
+		# Set up interpolator object. We'll overwrite this later.
 		self.interpolator = None
 
 	def update_interp(self, solutions):
@@ -34,32 +30,38 @@ class Interpolator:
 			Output from solve_ivp. 
 		'''
 		
-		if self.interpolator:
+		if self.interpolator: 
+			# Extract and append time points
 			ts = np.append(self.interpolator.ts, solutions.sol.ts[1:])
+			# Extract and append list of interpolant objects
 			interpolants = self.interpolator.interpolants + solutions.sol.interpolants
+			# Create new OdeSolution object
 			self.interpolator = OdeSolution(ts, interpolants)
 		else: 
+			# If the first time, we can just store the solve_ivp sol output
 			self.interpolator = solutions.sol
 
-	def interp(self, t, adjust=False):
+	def interp(self, t, adjust=True):
 		'''
 		Return interpolated value(s) at a singular or array of time points.
 		Adjust the value in line with bounds (to account for error).
 
 		Parameters
 		----------
-		t : float or array_like
+		t : float or array_like, shape (n,)
 			Singular or array of time points to solve at.
 		adjust : bool
 			Adjusts stock values so bounds are not violated if True. 
 
 		Returns
 		-------
-		array_like
+		array_like, shape (n,)
 			Interpolated values. 
 		'''
 
+		# Use __call__ to return interpolated stock values
 		vals = self.interpolator(t)
+		# Adjust in line with boundaries if specified
 		if adjust:
 			vals[(vals < 0)] = 0
 			vals[(vals > self.population)] = self.population
@@ -188,7 +190,7 @@ class SystemDynamics(Interpolator):
 		t_delay = t - self.quarantine_length
 		if t_delay >= 0:
 			I_delay = self.interp(t_delay)[1] 
-			QRR = quarantine_rate(I_delay) # + self.error[-1]
+			QRR = quarantine_rate(I_delay)
 		else:
 			QRR = 0
 
@@ -211,8 +213,10 @@ class SystemDynamics(Interpolator):
 			Differential equation values at time t.
 		'''
 
+		# Flows
 		IR, IRR, QR, VR, QRR = self.flow_equations(t, y)
 
+		# Stock equations
 		dSdt = - IR - VR
 		dIdt = IR - IRR - QR
 		dQdt = QR - QRR 
@@ -233,6 +237,7 @@ class SystemDynamics(Interpolator):
 		'''
 
 		while self.time[-1] < t:
+			# Solve until...
 			tmax = min(self.time[-1] + self.quarantine_length - 1, t)
 			
 			# Initial conditions

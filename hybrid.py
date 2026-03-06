@@ -76,7 +76,7 @@ class HybridSim(AgentBasedModel, SystemDynamics):
 		for t in range(1, self.horizon+1):
 			
 			# Solve SD equations
-			self.solve(t, method)
+			self.solve(t, method, rtol)
 			
 			# Run one step of the ABM
 			self.daily_step(self.I[-1])

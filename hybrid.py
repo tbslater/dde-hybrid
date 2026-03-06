@@ -45,17 +45,17 @@ class HybridSim(AgentBasedModel, SystemDynamics):
 		'''
 		
 		# Store additional params
-		self.horizon = parameters['horizon']
-		self.main_seed = parameters['main_seed']
+		self.horizon = parameters['general']['horizon']
+		self.main_seed = parameters['general']['main_seed']
 
 		# Inherit attributes / functions from sub-models
-		SystemDynamics.__init__(self, parameters)
-		AgentBasedModel.__init__(self, parameters, self.main_seed)
+		SystemDynamics.__init__(self, parameters['system_dynamics'])
+		AgentBasedModel.__init__(self, parameters['agent_based'], self.main_seed)
 
 		# Generate agents
 		self.generate_agents(int(self.population))
 
-	def simulate(self, method='RK45'):
+	def simulate(self, method='RK45', rtol=1e-9):
 		'''
 		Run the model until t=horizon.
 
@@ -68,7 +68,9 @@ class HybridSim(AgentBasedModel, SystemDynamics):
 		Parameters
 		----------
 		method : str
-			Method used by solve_ivp to solve stock equations.
+			Method used by solve_ivp to solve stock equations. Default is 'RK45'.
+		rtol : float
+			Controls relative accuracy when using solve_ivp. Default is 1e-9.
 		'''
 
 		for t in range(1, self.horizon+1):

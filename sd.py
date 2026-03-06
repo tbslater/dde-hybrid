@@ -224,7 +224,7 @@ class SystemDynamics(Interpolator):
 
 		return dSdt, dIdt, dQdt, dRdt
 
-	def solve(self, t, method):
+	def solve(self, t, method, rtol):
 		'''
 		Solves the stock differential equations until time t.
 
@@ -234,6 +234,8 @@ class SystemDynamics(Interpolator):
 			Solve until this time.
 		method : str
 			Method for solving. 
+		rtol : float
+			Controls relative accuracy when using solve_ivp.
 		'''
 
 		while self.time[-1] < t:
@@ -248,7 +250,7 @@ class SystemDynamics(Interpolator):
 		
 			# Solve stock equations
 			solutions = solve_ivp(self.stock_equations, time_domain, y0, 
-								  dense_output=True, method=method, rtol=1e-9)
+								  dense_output=True, method=method, rtol=rtol)
 		
 			# Append interpolator
 			self.update_interp(solutions)

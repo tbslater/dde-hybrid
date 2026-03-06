@@ -1,0 +1,1 @@
+{"system_dynamics": {"contact_rate": 10, "infectivity": 0.1, "symptom_delay": 2, "quarantine_length": 10, "quarantine_fraction": 0.95, "infectivity_length": 7, "population": 10000.0}, "agent_based": {"max_daily_vax": 50, "influence_param": 50, "beta_params": [5, 3], "weight": 0.9}, "general": {"horizon": 100, "main_seed": 1818}}

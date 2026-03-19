@@ -2,73 +2,7 @@
 import numpy as np
 from scipy.integrate import solve_ivp, OdeSolution
 
-class Interpolator:
-	'''
-	Object for interpolation of stock values.
-
-	Attributes
-	----------
-	interpolator : OdeSolution
-		Object containing functions for interpolation. 
-	'''
-
-	def __init__(self):
-		'''
-		Initialise an interpolator for the model. 
-		'''
-
-		# Set up interpolator object. We'll overwrite this later.
-		self.interpolator = None
-
-	def update_interp(self, solutions):
-		'''
-		Create a new OdeSolution object using by merging old and new.
-
-		Parameters
-		----------
-		solutions : bunch object
-			Output from solve_ivp. 
-		'''
-		
-		if self.interpolator: 
-			# Extract and append time points
-			ts = np.append(self.interpolator.ts, solutions.sol.ts[1:])
-			# Extract and append list of interpolant objects
-			interpolants = self.interpolator.interpolants + solutions.sol.interpolants
-			# Create new OdeSolution object
-			self.interpolator = OdeSolution(ts, interpolants)
-		else: 
-			# If the first time, we can just store the solve_ivp sol output
-			self.interpolator = solutions.sol
-
-	def interp(self, t, adjust=True):
-		'''
-		Return interpolated value(s) at a singular or array of time points.
-		Adjust the value in line with bounds (to account for error).
-
-		Parameters
-		----------
-		t : float or array_like, shape (n,)
-			Singular or array of time points to solve at.
-		adjust : bool
-			Adjusts stock values so bounds are not violated if True. 
-
-		Returns
-		-------
-		array_like, shape (n,)
-			Interpolated values. 
-		'''
-
-		# Use __call__ to return interpolated stock values
-		vals = self.interpolator(t)
-		# Adjust in line with boundaries if specified
-		if adjust:
-			vals[(vals < 0)] = 0
-			vals[(vals > self.population)] = self.population
-
-		return vals
-
-class SystemDynamics(Interpolator):
+class SDModel:
 	'''
 	Represents a system dynamics model for infectious disease modelling.
 
@@ -111,7 +45,7 @@ class SystemDynamics(Interpolator):
 	pp. 240–256. doi: 10.1080/17477778.2021.1992312.
 	'''
 
-	def __init__(self, parameters, initial_conditions=None):
+	def __init__(self, parameters, method, initial_conditions=None):
 		'''
 		Initialise a system dynamics model.
 
@@ -134,11 +68,24 @@ class SystemDynamics(Interpolator):
 		self.infectivity = parameters['infectivity']
 		self.symptom_delay = parameters['symptom_delay']
 		self.quarantine_length = parameters['quarantine_length']
-		self.vaccine_uptake = 0
 		self.quarantine_fraction = parameters['quarantine_fraction']
 		self.infectivity_length = parameters['infectivity_length']
 		self.population = parameters['population']
 
+		# Method for solving pipeline delay
+		if method=='chain' or method=='interp':
+			self.method = method
+		else: 
+			raise ValueError('Method must either be chain or interp.')
+
+		if self.method == 'chain':
+			self.delay_order = parameters['delay_order']
+			self.a = self.delay_order / self.quarantine_length
+			self.Z = np.zeros(self.delay_order - 1)
+			self.Z = self.Z.reshape((1,self.delay_order - 1))
+			if isinstance(self.delay_order, int) == False:
+				raise ValueError('Order must be an integer.')
+			
 		# Initial_conditions
 		if initial_conditions:
 			self.S = np.array([initial_conditions['susceptible']])
@@ -154,47 +101,8 @@ class SystemDynamics(Interpolator):
 		# Store timepoints
 		self.time = np.array([0])
 
-	def flow_equations(self, t, y):
-		'''
-		Calculates flow values at time t.
-
-		Parameters
-		----------
-		t : float
-			Current time point. 
-		y : array_like, shape (4,)
-			Stock values at time t.
-
-		Returns
-		-------
-		array_like, shape (5,)
-			Flow values at time t.
-		'''
-		
-		S, I, Q, R = y
-
-		def quarantine_rate(infections):
-
-			output = (self.quarantine_fraction * infections) / self.symptom_delay
-			
-			return output
-		
-		IR = (self.contact_rate * self.infectivity * S * I) / (S + I + R)
-
-		IRR = ((1-self.quarantine_fraction) * I) / self.infectivity_length
-		
-		QR = quarantine_rate(I)
-		
-		VR = self.vaccine_uptake
-		
-		t_delay = t - self.quarantine_length
-		if t_delay >= 0:
-			I_delay = self.interp(t_delay)[1] 
-			QRR = quarantine_rate(I_delay)
-		else:
-			QRR = 0
-
-		return IR, IRR, QR, VR, QRR
+		# Interpolator
+		self.interpolator = None
 
 	def stock_equations(self, t, y):
 		'''
@@ -213,18 +121,44 @@ class SystemDynamics(Interpolator):
 			Differential equation values at time t.
 		'''
 
-		# Flows
-		IR, IRR, QR, VR, QRR = self.flow_equations(t, y)
+		# Main stocks
+		S, I, Q, R = y[:4]
+
+		# Standard flows
+		IR = (self.contact_rate * self.infectivity * S * I) / (S + I + R)
+		IRR = ((1-self.quarantine_fraction) * I) / self.infectivity_length
+		QR = (self.quarantine_fraction * I) / self.symptom_delay
+
+		if self.method=='chain':
+			Z = y[4:]
+			dZdt = np.zeros(self.delay_order - 1)
+			outflow = self.a * Q
+			for i in range(self.delay_order - 1):
+				inflow = outflow
+				outflow = self.a * Z[i]
+				dZdt[i] = inflow - outflow
+
+		if self.method=='interp':			
+			t_delay = t - self.quarantine_length
+			if t_delay >= 0:
+				I_delay = self.interpolator(t_delay)[1] 
+				outflow = (self.quarantine_fraction * I_delay) / self.symptom_delay
+			else:
+				outflow = 0
 
 		# Stock equations
-		dSdt = - IR - VR
+		dSdt = - IR
 		dIdt = IR - IRR - QR
-		dQdt = QR - QRR 
-		dRdt = VR + IRR + QRR
+		dQdt = QR - outflow
+		dRdt = IRR + outflow
 
-		return dSdt, dIdt, dQdt, dRdt
+		output = np.array([dSdt, dIdt, dQdt, dRdt])
+		if self.method=='chain':
+			output = np.concatenate((output, dZdt), axis=None)
 
-	def solve(self, t, method, rtol):
+		return output
+
+	def solve(self, t):
 		'''
 		Solves the stock differential equations until time t.
 
@@ -241,26 +175,37 @@ class SystemDynamics(Interpolator):
 		while self.time[-1] < t:
 			# Solve until...
 			tmax = min(self.time[-1] + self.quarantine_length - 1, t)
-			
+		
 			# Initial conditions
 			y0 = [self.S[-1], self.I[-1], self.Q[-1], self.R[-1]]
+			if self.method=='chain':
+				y0 = np.concatenate((y0, self.Z[-1]), axis=None)
 		
 			# Time domain
 			time_domain = [self.time[-1], tmax]
 		
 			# Solve stock equations
 			solutions = solve_ivp(self.stock_equations, time_domain, y0, 
-								  dense_output=True, method=method, rtol=rtol)
-		
-			# Append interpolator
-			self.update_interp(solutions)
-
-			# Return last values
-			S, I, Q, R = self.interp(tmax)
+								  dense_output=True, method='LSODA', rtol=1e-6)
+	
+			# Update interpolator
+			if self.interpolator: 
+				# Extract and append time points
+				ts = np.append(self.interpolator.ts, solutions.sol.ts[1:])
+				# Extract and append list of interpolant objects
+				interpolants = self.interpolator.interpolants + solutions.sol.interpolants
+				# Create new OdeSolution object
+				self.interpolator = OdeSolution(ts, interpolants)
+			else: 
+				# If the first time, we can just store the solve_ivp sol output
+				self.interpolator = solutions.sol
 			
 			# Update stock values
-			self.S = np.append(self.S, S)
-			self.I = np.append(self.I, I)
-			self.Q = np.append(self.Q, Q)
-			self.R = np.append(self.R, R)
-			self.time = np.append(self.time, tmax)	
+			self.S = np.append(self.S, solutions.y[0,-1])
+			self.I = np.append(self.I, solutions.y[1,-1])
+			self.Q = np.append(self.Q, solutions.y[2,-1])
+			self.R = np.append(self.R, solutions.y[3,-1])
+			if self.method=='chain':
+				self.Z = np.vstack((self.Z, solutions.y[4:,-1]))
+			self.time = np.append(self.time, tmax)
+		

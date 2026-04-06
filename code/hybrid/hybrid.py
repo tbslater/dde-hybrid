@@ -55,7 +55,7 @@ class HybridSim(AgentBasedModel, SystemDynamics):
 		# Generate agents
 		self.generate_agents(int(self.population))
 
-	def simulate(self, method='LSODA', rtol=1e-9):
+	def simulate(self):
 		'''
 		Run the model until t=horizon.
 
@@ -76,7 +76,7 @@ class HybridSim(AgentBasedModel, SystemDynamics):
 		for t in range(1, self.horizon+1):
 			
 			# Solve SD equations
-			self.solve(t, method, rtol)
+			self.solve(t)
 			
 			# Run one step of the ABM
 			self.daily_step(self.I[-1])

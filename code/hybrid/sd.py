@@ -2,7 +2,7 @@
 import numpy as np
 from scipy.integrate import solve_ivp, OdeSolution
 
-class Interpolator:
+class Interpolator(OdeSolution):
 	'''
 	Object for interpolation of stock values.
 
@@ -12,36 +12,17 @@ class Interpolator:
 		Object containing functions for interpolation. 
 	'''
 
-	def __init__(self):
+	def __init__(self, ts, interpolants, bounds):
 		'''
 		Initialise an interpolator for the model. 
 		'''
 
-		# Set up interpolator object. We'll overwrite this later.
-		self.interpolator = None
+		super().__init__(ts, interpolants)
 
-	def update_interp(self, solutions):
-		'''
-		Create a new OdeSolution object using by merging old and new.
+		# Stock bounds
+		self.lower, self.upper = bounds
 
-		Parameters
-		----------
-		solutions : bunch object
-			Output from solve_ivp. 
-		'''
-		
-		if self.interpolator: 
-			# Extract and append time points
-			ts = np.append(self.interpolator.ts, solutions.sol.ts[1:])
-			# Extract and append list of interpolant objects
-			interpolants = self.interpolator.interpolants + solutions.sol.interpolants
-			# Create new OdeSolution object
-			self.interpolator = OdeSolution(ts, interpolants)
-		else: 
-			# If the first time, we can just store the solve_ivp sol output
-			self.interpolator = solutions.sol
-
-	def interp(self, t, adjust=True):
+	def __call__(self, t):
 		'''
 		Return interpolated value(s) at a singular or array of time points.
 		Adjust the value in line with bounds (to account for error).
@@ -60,15 +41,14 @@ class Interpolator:
 		'''
 
 		# Use __call__ to return interpolated stock values
-		vals = self.interpolator(t)
+		vals = super().__call__(t)
 		# Adjust in line with boundaries if specified
-		if adjust:
-			vals[(vals < 0)] = 0
-			vals[(vals > self.population)] = self.population
+		vals[(vals < self.lower)] = self.lower
+		vals[(vals > self.upper)] = self.upper
 
 		return vals
 
-class SystemDynamics(Interpolator):
+class SystemDynamics:
 	'''
 	Represents a system dynamics model for infectious disease modelling.
 
@@ -126,8 +106,11 @@ class SystemDynamics(Interpolator):
 			infected, quarantined and recovered individuals.
 		'''
 
-		# Inherit interpolator class
-		super().__init__()
+		# Method for solving delay
+		if parameters['method'] == 'LCT' or parameters['method'] == 'interp':
+			self.method = parameters['method']
+		else: 
+			raise ValueError('Method must either be LCT or interp.')
 
 		# Parameters
 		self.contact_rate = parameters['contact_rate']
@@ -151,51 +134,21 @@ class SystemDynamics(Interpolator):
 			self.Q = np.array([0])
 			self.R = np.array([0])
 
+		# Intermediate stocks for LCT approach
+		if self.method == 'LCT':
+			self.delay_order = parameters['delay_order']
+			self.a = self.delay_order / self.quarantine_length
+			self.Z = np.zeros(self.delay_order)
+			self.Z = self.Z.reshape((1,self.delay_order))
+			if isinstance(self.delay_order, int) == False:
+				raise ValueError('Order must be an integer.')
+
 		# Store timepoints
 		self.time = np.array([0])
 
-	def flow_equations(self, t, y):
-		'''
-		Calculates flow values at time t.
-
-		Parameters
-		----------
-		t : float
-			Current time point. 
-		y : array_like, shape (4,)
-			Stock values at time t.
-
-		Returns
-		-------
-		array_like, shape (5,)
-			Flow values at time t.
-		'''
+		# Interpolator class
+		self.interpolator = None
 		
-		S, I, Q, R = y
-
-		def quarantine_rate(infections):
-
-			output = (self.quarantine_fraction * infections) / self.symptom_delay
-			
-			return output
-		
-		IR = (self.contact_rate * self.infectivity * S * I) / (S + I + R)
-
-		IRR = ((1-self.quarantine_fraction) * I) / self.infectivity_length
-		
-		QR = quarantine_rate(I)
-		
-		VR = self.vaccine_uptake * S
-		
-		t_delay = t - self.quarantine_length
-		if t_delay >= 0:
-			I_delay = self.interp(t_delay)[1] 
-			QRR = quarantine_rate(I_delay)
-		else:
-			QRR = 0
-
-		return IR, IRR, QR, VR, QRR
-
 	def stock_equations(self, t, y):
 		'''
 		Calculates rate of change in stock at time t.
@@ -209,12 +162,36 @@ class SystemDynamics(Interpolator):
 
 		Returns
 		-------
-		array_like, shape (4,)
+		array_like, shape (5,)
 			Differential equation values at time t.
 		'''
 
-		# Flows
-		IR, IRR, QR, VR, QRR = self.flow_equations(t, y)
+		# Main stocks
+		S, I, Q, R = y[:4]
+
+		# Standard flows
+		VR = self.vaccine_uptake * S
+		IR = (self.contact_rate * self.infectivity * S * I) / (S + I + R)
+		IRR = ((1-self.quarantine_fraction) * I) / self.infectivity_length
+		QR = (self.quarantine_fraction * I) / self.symptom_delay
+
+		if self.method == 'LCT':
+			Z = y[4:]
+			dZdt = np.zeros(self.delay_order)
+			outflow = QR
+			for i in range(self.delay_order):
+				inflow = outflow
+				outflow = self.a * Z[i]
+				dZdt[i] = inflow - outflow
+			QRR = outflow
+
+		if self.method == 'interp':			
+			t_delay = t - self.quarantine_length
+			if t_delay >= 0:
+				I_delay = self.interpolator(t_delay)[1] 
+				QRR = (self.quarantine_fraction * I_delay) / self.symptom_delay
+			else:
+				QRR = 0
 
 		# Stock equations
 		dSdt = - IR - VR
@@ -222,9 +199,13 @@ class SystemDynamics(Interpolator):
 		dQdt = QR - QRR 
 		dRdt = VR + IRR + QRR
 
-		return dSdt, dIdt, dQdt, dRdt
+		output = np.array([dSdt, dIdt, dQdt, dRdt])
+		if self.method == 'LCT':
+			output = np.concatenate((output, dZdt), axis=None)
 
-	def solve(self, t, method, rtol):
+		return output
+
+	def solve(self, t):
 		'''
 		Solves the stock differential equations until time t.
 
@@ -238,29 +219,75 @@ class SystemDynamics(Interpolator):
 			Controls relative accuracy when using solve_ivp.
 		'''
 
-		while self.time[-1] < t:
-			# Solve until...
-			tmax = min(self.time[-1] + self.quarantine_length - 1, t)
+		if self.method == 'LCT':
 			
 			# Initial conditions
 			y0 = [self.S[-1], self.I[-1], self.Q[-1], self.R[-1]]
+			y0 = np.concatenate((y0, self.Z[-1]), axis=None)
 		
 			# Time domain
-			time_domain = [self.time[-1], tmax]
+			time_domain = [self.time[-1], t]
 		
 			# Solve stock equations
 			solutions = solve_ivp(self.stock_equations, time_domain, y0, 
-								  dense_output=True, method=method, rtol=rtol)
+								  dense_output=True, method='LSODA')
 		
 			# Append interpolator
-			self.update_interp(solutions)
+			if self.interpolator: 
+				# Extract and append time points
+				ts = np.append(self.interpolator.ts, solutions.sol.ts[1:])
+				# Extract and append list of interpolant objects
+				interpolants = self.interpolator.interpolants + solutions.sol.interpolants
+				self.interpolator = OdeSolution(ts, interpolants)
+			else: 
+				self.interpolator = solutions.sol
 
 			# Return last values
-			S, I, Q, R = self.interp(tmax)
+			S, I, Q, R = self.interpolator(t)[:4]
+			Z = self.interpolator(t)[4:]
 			
 			# Update stock values
 			self.S = np.append(self.S, S)
 			self.I = np.append(self.I, I)
 			self.Q = np.append(self.Q, Q)
 			self.R = np.append(self.R, R)
-			self.time = np.append(self.time, tmax)	
+			self.Z = np.vstack((self.Z, solutions.y[4:,-1]))
+			self.time = np.append(self.time, t)	
+
+		if self.method == 'interp':
+			
+			while self.time[-1] < t:
+				# Solve until...
+				tmax = min(self.time[-1] + self.quarantine_length - 1, t)
+				
+				# Initial conditions
+				y0 = [self.S[-1], self.I[-1], self.Q[-1], self.R[-1]]
+			
+				# Time domain
+				time_domain = [self.time[-1], tmax]
+			
+				# Solve stock equations
+				solutions = solve_ivp(self.stock_equations, time_domain, y0, 
+									  dense_output=True, method='LSODA')
+			
+				# Append interpolator
+				if self.interpolator: 
+					# Extract and append time points
+					ts = np.append(self.interpolator.ts, solutions.sol.ts[1:])
+					# Extract and append list of interpolant objects
+					interpolants = self.interpolator.interpolants + solutions.sol.interpolants
+					# Create new OdeSolution object
+					self.interpolator = Interpolator(ts, interpolants, [0, self.population])
+				else: 
+					self.interpolator = Interpolator(solutions.sol.ts, 
+													 solutions.sol.interpolants, [0, self.population])
+	
+				# Return last values
+				S, I, Q, R = self.interpolator(tmax)
+				
+				# Update stock values
+				self.S = np.append(self.S, S)
+				self.I = np.append(self.I, I)
+				self.Q = np.append(self.Q, Q)
+				self.R = np.append(self.R, R)
+				self.time = np.append(self.time, tmax)	

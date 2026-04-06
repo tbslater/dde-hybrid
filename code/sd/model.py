@@ -73,16 +73,18 @@ class SDModel:
 		self.population = parameters['population']
 
 		# Method for solving pipeline delay
-		if method=='chain' or method=='interp':
+		if method=='LCT' or method=='interp':
 			self.method = method
 		else: 
 			raise ValueError('Method must either be chain or interp.')
 
-		if self.method == 'chain':
+		if self.method == 'LCT':
 			self.delay_order = parameters['delay_order']
 			self.a = self.delay_order / self.quarantine_length
-			self.Z = np.zeros(self.delay_order - 1)
-			self.Z = self.Z.reshape((1,self.delay_order - 1))
+			# self.Z = np.zeros(self.delay_order - 1)
+			self.Z = np.zeros(self.delay_order)
+			# self.Z = self.Z.reshape((1,self.delay_order - 1))
+			self.Z = self.Z.reshape((1,self.delay_order))
 			if isinstance(self.delay_order, int) == False:
 				raise ValueError('Order must be an integer.')
 			
@@ -129,11 +131,11 @@ class SDModel:
 		IRR = ((1-self.quarantine_fraction) * I) / self.infectivity_length
 		QR = (self.quarantine_fraction * I) / self.symptom_delay
 
-		if self.method=='chain':
+		if self.method=='LCT':
 			Z = y[4:]
-			dZdt = np.zeros(self.delay_order - 1)
-			outflow = self.a * Q
-			for i in range(self.delay_order - 1):
+			dZdt = np.zeros(self.delay_order)
+			outflow = QR
+			for i in range(self.delay_order):
 				inflow = outflow
 				outflow = self.a * Z[i]
 				dZdt[i] = inflow - outflow
@@ -153,7 +155,7 @@ class SDModel:
 		dRdt = IRR + outflow
 
 		output = np.array([dSdt, dIdt, dQdt, dRdt])
-		if self.method=='chain':
+		if self.method=='LCT':
 			output = np.concatenate((output, dZdt), axis=None)
 
 		return output
@@ -178,7 +180,7 @@ class SDModel:
 		
 			# Initial conditions
 			y0 = [self.S[-1], self.I[-1], self.Q[-1], self.R[-1]]
-			if self.method=='chain':
+			if self.method=='LCT':
 				y0 = np.concatenate((y0, self.Z[-1]), axis=None)
 		
 			# Time domain
@@ -205,7 +207,7 @@ class SDModel:
 			self.I = np.append(self.I, solutions.y[1,-1])
 			self.Q = np.append(self.Q, solutions.y[2,-1])
 			self.R = np.append(self.R, solutions.y[3,-1])
-			if self.method=='chain':
+			if self.method=='LCT':
 				self.Z = np.vstack((self.Z, solutions.y[4:,-1]))
 			self.time = np.append(self.time, tmax)
 		

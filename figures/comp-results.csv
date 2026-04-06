@@ -1,0 +1,6 @@
+Method,Mean,Lower,Upper,Error
+Interpolation,59.51,41.09,90.42,
+Erlang: n=1,32.0,15.65,60.26,11.09
+Erlang:n=10,39.37,14.61,79.31,11.09
+Erlang: n=100,408.4,233.9,755.27,11.09
+Erlang: n=1000,1.3,1.06,1.99,11.09

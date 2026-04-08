@@ -1,6 +1,6 @@
 # Implementing pipeline delays within a hybrid system dynamics and agent-based model in Python
 
-[![Python 3.14.2](https://img.shields.io/badge/-Python_3.14.2-a8902b?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/) ![Code licence](https://img.shields.io/badge/🛡_Licence-GPL--3.0-8a00c2?style=for-the-badge&labelColor=gray) [![DOI](https://img.shields.io/badge/DOI-insert_doi-blue?style=for-the-badge&labelColor=gray)](insert_doi)
+[![Python 3.14.2](https://img.shields.io/badge/-Python_3.14.2-a8902b?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/) ![Code licence](https://img.shields.io/badge/🛡_Licence-GPL--3.0-8a00c2?style=for-the-badge&labelColor=gray) [![DOI](https://img.shields.io/badge/DOI-10.5281/zenodo.19471486-blue?style=for-the-badge&labelColor=gray)](https://doi.org/10.5281/zenodo.19471486)
 
 ## Abstract
 
@@ -25,7 +25,7 @@ git clone https://github.com/tbslater/dde-hybrid.git
 cd dde-hybrid
 ```
 
-**Step 2**: setup the virtual environment.
+**Step 2**: set up the virtual environment.
 
 ```         
 conda env create --file environment.yaml
@@ -75,17 +75,17 @@ The repository is structured as follows:
 
 ## Specifications
 
-Simulations were run on a HP EliteBook 640 G10 with a 1.3GHz Intel Core i5 processor and 16GB of memory under Windows 11. Total model run time was approximately ???.
+Simulations were run on a HP EliteBook 640 G10 with a 1.3GHz Intel Core i5 processor and 16GB of memory under Windows 11. Total model run time was approximately 1.9 hours.
 
 ## Citation
 
 If you used the code in this repository, please cite us!
 
-> Slater, T., Monks, T., Kelson, M. (2026). Implementing pipeline delays within a hybrid system dynamics and agent-based model in Python. GitHub. <https://github.com/tbslater/dde-hybrid>.
+> Slater, T., Monks, T., & Kelson, M. (2026). Implementing pipeline delays within a hybrid system dynamics and agent-based model in Python: source code. GitHub. <https://github.com/tbslater/dde-hybrid>.
 
 Or alternatively, you can cite the archived version on Zenodo.
 
-> Slater, T., Monks, T., Kelson, M. (2026). Implementing pipeline delays within a hybrid system dynamics and agent-based model in Python. GitHub. \*\*insert Zenodo url\*\*.
+> Slater, T., Monks, T., & Kelson, M. (2026). Implementing pipeline delays within a hybrid system dynamics and agent-based model in Python: source code. (v1.0.1). Zenodo. <https://doi.org/10.5281/zenodo.19471486>.
 
 ## Licence
 
@@ -97,7 +97,7 @@ This research was funded by the EPSRC DTP from October 2024 to March 2028.
 
 ## Acknowledgements
 
-The following sources are acknowledged for their help in developing the code used for this model.
+The following sources are acknowledged for their help in developing the model code.
 
 | Reference                                                                                                                                                                                                                                                                          | Used for?                                                                                                    |
 |-------------------------------------------|-----------------------------|

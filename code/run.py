@@ -41,7 +41,7 @@ def main():
 	
 	main_start = time.time()
 	
-	# Load paarameters
+	# Load parameters
 	parameters = import_parameters()
 
 	# Time domain
@@ -92,28 +92,27 @@ def main():
 	values = [10**x for x in range(4)]
 	results = np.zeros((len(values)+1)*N_RUNS).reshape((len(values)+1, N_RUNS))
 	for run in range(N_RUNS):
-	    print(f'Running replication {run+1}.')
-	    results[0, run] = run_sd_model(parameters['system_dynamics'])
-	    for i, j in enumerate(values):
-	        results[i+1, run] = run_sd_model(parameters['system_dynamics'], 
+		results[0, run] = run_sd_model(parameters['system_dynamics'])
+		for i, j in enumerate(values):
+			results[i+1, run] = run_sd_model(parameters['system_dynamics'], 
 											 method='LCT', delay_order=j)
+		if (run+1) % 10 == 0:
+			print(f'{((run+1)/N_RUNS) * 100}% complete.')
 
 	# Calculate means and 90% confidence intervals
-	uppers = np.zeros(len(values)+1)
-	lowers = np.zeros(len(values)+1)
+	# uppers = np.zeros(len(values)+1)
+	# lowers = np.zeros(len(values)+1)
 	means = np.mean(results, axis=1)
-	means[:4] = means[:4]*1000
-	means[4] = means[4]/60
-	means = np.round(means, decimals=2)
-	for i in range(4):
-	    sorted_results = np.sort(results[i])
-	    lower = np.round(sorted_results[9] * 1000, decimals=2)
-	    upper = np.round(sorted_results[89] * 1000, decimals=2)
-	    lowers[i], uppers[i] = lower, upper
-	sorted_results = np.sort(results[4])
-	lowers[4] = np.round(sorted_results[9] / 60, decimals=2)
-	uppers[4] = np.round(sorted_results[89] / 60, decimals=2)
-
+	means = np.round(means, decimals=4)
+	sorted_results = np.sort(results)
+	lowers = np.round(sorted_results[:,9], decimals=4)
+	uppers = np.round(sorted_results[:,89], decimals=4)
+	# for i in range(len(values)+1):
+	#     sorted_results = np.sort(results[i])
+	#     lower = np.round(sorted_results[9], decimals=4)
+	#     upper = np.round(sorted_results[89], decimals=4)
+	#     lowers[i], uppers[i] = lower, upper
+		
 	# Store results in a table
 	comp_results = pd.DataFrame()
 	comp_results['Method'] = ['Interpolation', 'Erlang: n=1', 'Erlang:n=10',
@@ -218,7 +217,7 @@ def main():
 	# Print the total run time
 	main_end = time.time()
 	main_elapsed = main_end - main_start
-	print(f'Total run time: {np.round(main_elapsed/60, decimals=1)} minutes.')
+	print(f'Total run time: {np.round(main_elapsed/3600, decimals=1)} hours.')
 
 if __name__ == '__main__':
 	main()

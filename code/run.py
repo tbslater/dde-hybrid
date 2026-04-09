@@ -100,22 +100,16 @@ def main():
 			print(f'{((run+1)/N_RUNS) * 100}% complete.')
 
 	# Calculate means and 90% confidence intervals
-	# uppers = np.zeros(len(values)+1)
-	# lowers = np.zeros(len(values)+1)
 	means = np.mean(results, axis=1)
 	means = np.round(means, decimals=4)
 	sorted_results = np.sort(results)
 	lowers = np.round(sorted_results[:,9], decimals=4)
 	uppers = np.round(sorted_results[:,89], decimals=4)
-	# for i in range(len(values)+1):
-	#     sorted_results = np.sort(results[i])
-	#     lower = np.round(sorted_results[9], decimals=4)
-	#     upper = np.round(sorted_results[89], decimals=4)
-	#     lowers[i], uppers[i] = lower, upper
+
 		
 	# Store results in a table
 	comp_results = pd.DataFrame()
-	comp_results['Method'] = ['Interpolation', 'Erlang: n=1', 'Erlang:n=10',
+	comp_results['Method'] = ['Interpolation', 'Erlang: n=1', 'Erlang: n=10',
 							  'Erlang: n=100', 'Erlang: n=1000']
 	comp_results['Mean'] = means
 	comp_results['Lower'] = lowers

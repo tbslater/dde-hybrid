@@ -75,7 +75,7 @@ The repository is structured as follows:
 
 ## Specifications
 
-Simulations were run on a HP EliteBook 640 G10 with a 1.3GHz Intel Core i5 processor and 16GB of memory under Windows 11. Total model run time was approximately 1.9 hours.
+Simulations were run on a HP EliteBook 640 G10 with a 1.3GHz Intel Core i5 processor and 16GB of memory under Windows 11. Total model run time was approximately 1.6 hours.
 
 ## Citation
 

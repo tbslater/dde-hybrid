@@ -8,6 +8,8 @@ import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import math
+from scipy.stats import t
 from joblib import Parallel, delayed, cpu_count
 
 def import_parameters():
@@ -99,21 +101,19 @@ def main():
 		if (run+1) % 10 == 0:
 			print(f'{((run+1)/N_RUNS) * 100}% complete.')
 
-	# Calculate means and 90% confidence intervals
+	# Calculate means and 95% confidence intervals
 	means = np.mean(results, axis=1)
-	means = np.round(means, decimals=4)
-	sorted_results = np.sort(results)
-	lowers = np.round(sorted_results[:,9], decimals=4)
-	uppers = np.round(sorted_results[:,89], decimals=4)
-
+	stds = np.std(results, axis=1)
+	bounds = (stds/math.sqrt(N_RUNS)) * t.ppf(0.975, df=N_RUNS-1)
+	lowers, uppers = [means - bounds, means + bounds]
 		
 	# Store results in a table
 	comp_results = pd.DataFrame()
 	comp_results['Method'] = ['Interpolation', 'Erlang: n=1', 'Erlang: n=10',
 							  'Erlang: n=100', 'Erlang: n=1000']
-	comp_results['Mean'] = means
-	comp_results['Lower'] = lowers
-	comp_results['Upper'] = uppers
+	comp_results['Mean'] = np.round(means, decimals=4)
+	comp_results['Lower'] = np.round(lowers, decimals=4)
+	comp_results['Upper'] = np.round(uppers, decimals=4)
 
 	# Calculate errors for Erlang approximations
 	q_vals = np.zeros((len(values)+1)*len(time_domain))

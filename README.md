@@ -1,6 +1,6 @@
 # Implementing pipeline delays within a hybrid system dynamics and agent-based model in Python
 
-[![Python 3.14.2](https://img.shields.io/badge/-Python_3.14.2-a8902b?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/) ![Code licence](https://img.shields.io/badge/🛡_Licence-GPL--3.0-8a00c2?style=for-the-badge&labelColor=gray) [![DOI](https://img.shields.io/badge/DOI-10.5281/zenodo.19471486-blue?style=for-the-badge&labelColor=gray)](https://doi.org/10.5281/zenodo.19471486)
+[![Python 3.14.2](https://img.shields.io/badge/-Python_3.14.2-a8902b?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/) ![Code licence](https://img.shields.io/badge/🛡_Licence-GPL--3.0-8a00c2?style=for-the-badge&labelColor=gray) [![DOI](https://img.shields.io/badge/DOI-10.5281/zenodo.19626450-blue?style=for-the-badge&labelColor=gray)](https://doi.org/10.5281/zenodo.19626450)
 
 ## Abstract
 
@@ -85,7 +85,7 @@ If you used the code in this repository, please cite us!
 
 Or alternatively, you can cite the archived version on Zenodo.
 
-> Slater, T., Monks, T., & Kelson, M. (2026). Implementing pipeline delays within a hybrid system dynamics and agent-based model in Python: source code. (v1.0.1). Zenodo. <https://doi.org/10.5281/zenodo.19471486>.
+> Slater, T., Monks, T., & Kelson, M. (2026). Implementing pipeline delays within a hybrid system dynamics and agent-based model in Python: source code. (v1.0.2). Zenodo. <https://doi.org/10.5281/zenodo.19626450>.
 
 ## Licence
 
@@ -100,7 +100,7 @@ This research was funded by the EPSRC DTP from October 2024 to March 2028.
 The following sources are acknowledged for their help in developing the model code.
 
 | Reference                                                                                                                                                                                                                                                                          | Used for?                                                                                                    |
-|-------------------------------------------|-----------------------------|
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
 | Palmer, G., & Tian, Y. (2021). Source code for Ciw hybrid simulations. (2021-03-12). Zenodo. <https://doi.org/10.5281/zenodo.4601529>                                                                                                                                              | Structure for specifying both the system dynamics model and the hybrid interface were inspired by this code. |
 | J. Archbold, S. Clohessy, D. Herath, N. Griffiths and O. Oyebode, An Agent-Based Model of the Spread of Behavioural Risk-Factors for Cardiovascular Disease in City-Scale Populations, PLoS ONE, 19(5): e0303051, 2024. <https://github.com/nathangriffiths/CVD-Agent-Based-Model> | Code associated with this paper was used to build the agent-based component of our model.                    |
 | Monks, T. (2025). sim-tools (v0.8.0a). Zenodo. <https://doi.org/10.5281/zenodo.15041282>                                                                                                                                                                                           | Package used for random sampling and seed generation.                                                        |
